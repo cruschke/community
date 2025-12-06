@@ -836,18 +836,18 @@ def create_gradient_bar(height, max_height, prev_height = None, next_height = No
     # Each tuple is (position_ratio, color)
     if use_grey:
         gradient_stops = [
-            (0.0, "#404040"),  # Bottom: Dark grey
-            (0.3, "#505050"),  # Darker grey
-            (0.5, "#606060"),  # Medium grey
-            (0.65, "#707070"),  # Medium-light grey
-            (0.8, "#787878"),  # Light grey
-            (0.9, "#7C7C7C"),  # Lighter grey
-            (1.0, "#808080"),  # Top: Light grey
+            (0.0, "#505050"),  # Bottom: Medium-dark grey (brighter)
+            (0.3, "#606060"),  # Medium grey
+            (0.5, "#707070"),  # Medium-light grey
+            (0.65, "#787878"),  # Light grey
+            (0.8, "#808080"),  # Lighter grey
+            (0.9, "#888888"),  # Very light grey
+            (1.0, "#909090"),  # Top: Light grey (brighter)
         ]
     else:
         gradient_stops = [
-            (0.0, "#00D88A"),  # Bottom: Green
-            (0.3, "#33E5A0"),  # Light green
+            (0.0, "#1AE89D"),  # Bottom: Brighter green (more visible)
+            (0.3, "#4DEBB0"),  # Light green
             (0.5, "#FFCC00"),  # Yellow
             (0.65, "#FFB733"),  # Orange-yellow
             (0.8, "#FF9500"),  # Orange
@@ -861,10 +861,15 @@ def create_gradient_bar(height, max_height, prev_height = None, next_height = No
         # Calculate position in gradient (0.0 = top/red, 1.0 = bottom/green)
         # pixel_index 0 is top of bar, should be red
         # pixel_index height-1 is bottom of bar, should be green
-        position_from_bottom = (height - 1 - pixel_index) / float(max_height)
+        # Use max_height for consistent gradient colors across all bars
+        position_from_bottom = (height - 1 - pixel_index) / float(max_height - 1) if max_height > 1 else 0.0
+
+        # Clamp to 0.0-1.0 range
+        position_from_bottom = max(0.0, min(1.0, position_from_bottom))
 
         # Find which gradient segment this pixel falls into
-        color = "#00D88A"  # Default green
+        color = gradient_stops[0][1]  # Default to bottom color
+        found_color = False
         for i in range(len(gradient_stops) - 1):
             pos1, color1 = gradient_stops[i]
             pos2, color2 = gradient_stops[i + 1]
@@ -873,7 +878,12 @@ def create_gradient_bar(height, max_height, prev_height = None, next_height = No
                 # Interpolate between these two stops
                 ratio = (position_from_bottom - pos1) / (pos2 - pos1)
                 color = interpolate_color(color1, color2, ratio)
+                found_color = True
                 break
+
+        # If no segment matched and position > last stop, use top color
+        if not found_color and position_from_bottom > gradient_stops[-1][0]:
+            color = gradient_stops[-1][1]
 
         # Determine if this pixel should be bright (contour pixel)
         # A pixel is part of the contour if:
@@ -903,9 +913,9 @@ def create_gradient_bar(height, max_height, prev_height = None, next_height = No
             # Calculate brightness based on position: darker at bottom, brighter at top
             # pixel_index 0 = top (would be contour anyway)
             # pixel_index height-1 = bottom (darkest interior pixel)
-            # Use ratio from 0.05 (very dark at bottom) to 0.3 (dimmer at top, but still distinct from contour)
+            # Use ratio from 0.15 (darker at bottom but visible) to 0.35 (dimmer at top, but still distinct from contour)
             position_ratio = float(pixel_index) / float(height - 1) if height > 1 else 0
-            brightness_factor = 0.3 - (position_ratio * 0.25)  # 0.3 at top interior → 0.05 at bottom
+            brightness_factor = 0.35 - (position_ratio * 0.20)  # 0.35 at top interior → 0.15 at bottom
             color = adjust_brightness(color, brightness_factor)
 
         # Create 1px high colored box
@@ -1214,7 +1224,7 @@ def render_hour_labels(forecast):
 
     return render.Stack(children = labels)
 
-def create_consumption_gradient_bar(height, base_color, prev_height = None, next_height = None):
+def create_consumption_gradient_bar(height, max_height, base_color, prev_height = None, next_height = None):
     """
     Create a consumption bar with contour highlighting and depth gradient.
 
@@ -1222,7 +1232,8 @@ def create_consumption_gradient_bar(height, base_color, prev_height = None, next
     with brightness variations for contour and depth effects.
 
     Args:
-        height: Bar height in pixels
+        height: Bar height in pixels (1 to max_height)
+        max_height: Maximum possible bar height (typically 14px)
         base_color: Base efficiency color for this bar
         prev_height: Height of previous bar (left neighbor) or None
         next_height: Height of next bar (right neighbor) or None
@@ -1348,7 +1359,7 @@ def render_consumption_chart(forecast, max_height, current_slot):
         # Only show consumption for past slots (< current_slot)
         if slot < current_slot:
             color = price_point.get("efficiency_color") or "#808080"
-            bar = create_consumption_gradient_bar(height, color, prev_height, next_height)
+            bar = create_consumption_gradient_bar(height, max_height, color, prev_height, next_height)
         else:
             # Future slot - show minimal gray bar (no gradient)
             bar = render.Box(
@@ -1455,8 +1466,8 @@ def render_main_display(forecast_data, current_slot, cache_status, is_demo = Fal
                             children = [
                                 render.Text(
                                     "DEMO",
-                                    font = "6x13",
-                                    color = "#FFFFFF",
+                                    font = "10x20",
+                                    color = "#FF0000",
                                 ),
                             ],
                         ),
