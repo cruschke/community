@@ -1224,7 +1224,7 @@ def render_hour_labels(forecast):
 
     return render.Stack(children = labels)
 
-def create_consumption_gradient_bar(height, max_height, base_color, prev_height = None, next_height = None):
+def create_consumption_gradient_bar(height, base_color, prev_height = None, next_height = None):
     """
     Create a consumption bar with contour highlighting and depth gradient.
 
@@ -1232,8 +1232,7 @@ def create_consumption_gradient_bar(height, max_height, base_color, prev_height 
     with brightness variations for contour and depth effects.
 
     Args:
-        height: Bar height in pixels (1 to max_height)
-        max_height: Maximum possible bar height (typically 14px)
+        height: Bar height in pixels
         base_color: Base efficiency color for this bar
         prev_height: Height of previous bar (left neighbor) or None
         next_height: Height of next bar (right neighbor) or None
@@ -1359,7 +1358,7 @@ def render_consumption_chart(forecast, max_height, current_slot):
         # Only show consumption for past slots (< current_slot)
         if slot < current_slot:
             color = price_point.get("efficiency_color") or "#808080"
-            bar = create_consumption_gradient_bar(height, max_height, color, prev_height, next_height)
+            bar = create_consumption_gradient_bar(height, color, prev_height, next_height)
         else:
             # Future slot - show minimal gray bar (no gradient)
             bar = render.Box(
